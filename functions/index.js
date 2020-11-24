@@ -1,21 +1,15 @@
 const functions = require('firebase-functions');
-
 const admin = require('firebase-admin');
+const express = require('express');
+const cors = require('cors');
+
 admin.initializeApp();
 
 const db = admin.firestore();
+const listingsRef = db.collection('listings');
 
-// // Create and Deploy Your First Cloud Functions
-// // https://firebase.google.com/docs/functions/write-firebase-functions
-//
-// exports.helloWorld = functions.https.onRequest((request, response) => {
-//   functions.logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
-
-const createJobListing = async (req, res) => {
-  if (req.method !== 'POST') res.send('Only post requests is allowed.');
-  const { title, jobPosition, requiredExperience, requiredSkills, jobInfo, workSchedule, location } = req.body;
+const createJobListing = async (req, res, next) => {
+  const { title, jobPosition, requiredExperience, requiredSkills, jobInfo, workSchedule, location, isOnline } = req.body;
   const data = {
     title: title,
     jobPosition: jobPosition,
@@ -23,23 +17,61 @@ const createJobListing = async (req, res) => {
     requiredSkills: requiredSkills,
     jobInfo: jobInfo,
     workSchedule: workSchedule,
-    location: location
+    location: location,
+    isOnline: isOnline
   };
 
-  await db.collection('listings').add(data);
+  listingsRef.add(data)
+  .catch(err => {
+    console.log(`An error occured at adding data to firestore: ${err}`);
+    next(err)
+  });
 
   res.send({
     isSuccessful: true,
-    data
+    ...data
   });
 }
 
-/*
-const getJobListings = async (req, res) => {
+const getJobListings = async (req, res, next) => {
+  const listings = [];
+  listingsRef.get()
+    .then((querySnapshot) => {
+      querySnapshot.forEach((doc) => {
+        listings.push({"id": doc.id, ...doc.data()});
+      })
+    })
+    .then(() => {
+      console.log(listings);
+      res.send(listings);
+    })
+    .catch(err => {
+      console.log(err);
+      next(err);
+    })
+}
 
-} 
-*/
+const requestLogger = (req, res, next) => {
+  console.log(`The request method is: ${req.method} and the request body is: ${JSON.stringify(req.body)}`);
+  next();
+}
 
-exports.createListing = functions.https.onRequest(createJobListing);
+const errorLogger = (err, req, res, next) => {
+  console.log(err);
+  functions.logger.info("Error: ", err);
+  next(err);
+}
 
-// exports.getListings = functions.https.onRequest(getJobListings);
+const app = express();
+
+app.use('/', requestLogger);
+
+app.use(cors({ origin: true }));
+
+app.use('/', errorLogger);
+
+app.post('/createJobListing', createJobListing);
+
+app.get('/getListings', getJobListings);
+
+exports.jobsListing = functions.https.onRequest(app);
