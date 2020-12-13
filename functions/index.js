@@ -8,7 +8,7 @@ admin.initializeApp();
 const db = admin.firestore();
 const listingsRef = db.collection('listings');
 
-const createJobListing = async (req, res, next) => {
+const createJobListing = (req, res, next) => {
   const { title, jobPosition, requiredExperience, requiredSkills, jobInfo, workSchedule, location, isOnline } = req.body;
   const data = {
     title: title,
@@ -22,10 +22,10 @@ const createJobListing = async (req, res, next) => {
   };
 
   listingsRef.add(data)
-  .catch(err => {
-    console.log(`An error occured at adding data to firestore: ${err}`);
-    next(err)
-  });
+    .catch(err => {
+      console.log(`An error occured at adding data to firestore: ${err}`);
+      next(err)
+    });
 
   res.send({
     isSuccessful: true,
@@ -34,21 +34,16 @@ const createJobListing = async (req, res, next) => {
 }
 
 const getJobListings = async (req, res, next) => {
-  const listings = [];
-  listingsRef.get()
-    .then((querySnapshot) => {
-      querySnapshot.forEach((doc) => {
-        listings.push({"id": doc.id, ...doc.data()});
-      })
+  const snapshot = await listingsRef.get();
+  res.send({
+    isSuccessful: true,
+    response: snapshot.docs.map(doc => {
+      return {
+        "id": doc.id,
+        ...doc.data()
+      };
     })
-    .then(() => {
-      console.log(listings);
-      res.send(listings);
-    })
-    .catch(err => {
-      console.log(err);
-      next(err);
-    })
+  });
 }
 
 const requestLogger = (req, res, next) => {
