@@ -2,6 +2,7 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const express = require('express');
 const cors = require('cors');
+const uniqid = require('uniqid');
 
 admin.initializeApp();
 
@@ -11,6 +12,7 @@ const listingsRef = db.collection('listings');
 const createJobListing = (req, res, next) => {
   const { title, jobPosition, requiredExperience, requiredSkills, jobInfo, workSchedule, location, isOnline } = req.body;
   const data = {
+    id: uniqid('listing-'),
     title: title,
     jobPosition: jobPosition,
     requiredExperience: requiredExperience,
@@ -39,7 +41,6 @@ const getJobListings = async (req, res, next) => {
     isSuccessful: true,
     response: snapshot.docs.map(doc => {
       return {
-        "id": doc.id,
         ...doc.data()
       };
     })
